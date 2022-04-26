@@ -14,8 +14,8 @@ from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
 
 from py_mips_disasm.backend.mips.MipsText import Text
 from py_mips_disasm.backend.mips.MipsRelocZ64 import RelocZ64
+from py_mips_disasm.backend.mips.MipsFileSplits import FileSplits
 
-from mips.MipsFileSplits import FileSplits
 from mips.ZeldaTables import contextReadVariablesCsv, contextReadFunctionsCsv, getFileAddresses
 
 
@@ -39,16 +39,16 @@ def disassembleFile(version: str, filename: str, game: str, outputfolder: str, c
     if is_overlay:
         print("Overlay detected. Parsing...")
 
-        vramStart = -1
+        vramStart = None
         fileAddresses = getFileAddresses(os.path.join(game, version, "tables", "file_addresses.csv"))
         if filename in fileAddresses:
             vramStart = fileAddresses[filename].vramStart
 
-        relocSection = RelocZ64(array_of_bytes, filename, context)
-        f = FileSplits(array_of_bytes, filename, context, relocSection=relocSection, vramStartParam=vramStart)
+        relocSection = RelocZ64(context, None, filename, array_of_bytes)
+        f = FileSplits(context, vramStart, filename, array_of_bytes, relocSection=relocSection)
     elif filename in ("code", "boot", "n64dd"):
         print(f"{filename} detected. Parsing...")
-        f = FileSplits(array_of_bytes, filename, context, splitsData=splitsData)
+        f = FileSplits(context, None, filename, array_of_bytes, splitsData=splitsData)
     else:
         print("Unknown file type. Assuming .text. Parsing...")
 
@@ -57,11 +57,11 @@ def disassembleFile(version: str, filename: str, game: str, outputfolder: str, c
             print(f"Parsing until offset {disasm_Utils.toHex(textend, 2)}")
             text_data = array_of_bytes[:textend]
 
-        f = Text(text_data, filename, context)
+        f = Text(context, None, filename, text_data)
 
     if vram >= 0:
         print(f"Using VRAM {disasm_Utils.toHex(vram, 8)[2:]}")
-        f.setVRamStart(vram)
+        f.setVram(vram)
 
     f.analyze()
 

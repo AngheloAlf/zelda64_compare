@@ -16,8 +16,8 @@ from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
 
 from py_mips_disasm.backend.mips.MipsSection import Section
 from py_mips_disasm.backend.mips.MipsRelocZ64 import RelocZ64
+from py_mips_disasm.backend.mips.MipsFileSplits import FileSplits
 
-from mips.MipsFileSplits import FileSplits
 from mips.ZeldaTables import contextReadVariablesCsv, contextReadFunctionsCsv, getFileAddresses, FileAddressesEntry
 
 
@@ -115,17 +115,17 @@ def compareOverlayAcrossVersions(filename: str, game: str, versionsList: List[st
             continue
 
         if is_overlay:
-            vramStart = -1
+            vramStart = None
             if version in fileAddressesPerVersion:
                 if filename in fileAddressesPerVersion[version]:
                     vramStart = fileAddressesPerVersion[version][filename].vramStart
 
-            relocSection = RelocZ64(array_of_bytes, filename, contextPerVersion[version])
-            f = FileSplits(array_of_bytes, filename, contextPerVersion[version], relocSection=relocSection, vramStartParam=vramStart)
+            relocSection = RelocZ64(contextPerVersion[version], None, filename, array_of_bytes)
+            f = FileSplits(contextPerVersion[version], vramStart, filename, array_of_bytes, relocSection=relocSection)
         elif filename in ("code", "boot", "n64dd"):
-            f = FileSplits(array_of_bytes, filename, contextPerVersion[version], splitsData=splitsData)
+            f = FileSplits(contextPerVersion[version], None, filename, array_of_bytes, splitsData=splitsData)
         else:
-            f = Section(array_of_bytes, filename, contextPerVersion[version])
+            f = Section(contextPerVersion[version], None, filename, array_of_bytes)
 
         f.analyze()
 

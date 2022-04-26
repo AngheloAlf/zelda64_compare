@@ -164,10 +164,10 @@ def fixBaserom(rom):
     language = chr(header[0x3E])
     crc = header[0x10:0x18].hex()
 
-    game_version = CRC_VERSION[crc]
+    game_version = CRC_VERSION.get(crc, None)
 
     if game_version == None:
-        print("Does not appear to be a supported OoT or MM version: CRC not found.")
+        print("Does not appear to be a supported OoT, MM or DnM version: CRC not found.")
         sys.exit(1)
 
     if game_version[0] == "OOT" and language == "J":

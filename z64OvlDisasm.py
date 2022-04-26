@@ -13,11 +13,12 @@ from py_mips_disasm.backend.common.FileSectionType import FileSectionType
 from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
 
 from py_mips_disasm.backend.mips.MipsText import Text
+from py_mips_disasm.backend.mips.MipsFunction import Function
 from py_mips_disasm.backend.mips.MipsRodata import Rodata
 from py_mips_disasm.backend.mips.MipsRelocZ64 import RelocZ64
 from py_mips_disasm.backend.mips.FilesHandlers import writeSplitedFunction, writeOtherRodata
+from py_mips_disasm.backend.mips.MipsFileSplits import FileSplits
 
-from mips.MipsFileSplits import FileSplits
 from mips.ZeldaTables import getFileAddresses
 
 def writeFiles(ovlSection: FileSplits, textOutput: str, dataOutput: str|None):
@@ -126,20 +127,21 @@ def ovlDisassemblerMain():
         reloc_filename = findRelocFile(input_name, args.file_addresses)
         reloc_path = os.path.join(os.path.split(args.binary)[0], reloc_filename)
 
-        relocSection = RelocZ64(disasm_Utils.readFileAsBytearray(reloc_path), input_name, context)
-        relocSection.differentSegment = True
+        vram = None
         if reloc_filename in fileAddresses:
-            relocSection.setVRamStart(fileAddresses[reloc_filename].vramStart)
+            vram = fileAddresses[reloc_filename].vramStart
+        relocSection = RelocZ64(context, vram, input_name, disasm_Utils.readFileAsBytearray(reloc_path))
+        relocSection.differentSegment = True
     else:
-        relocSection = RelocZ64(array_of_bytes, input_name, context)
+        relocSection = RelocZ64(context, None, input_name, array_of_bytes)
         relocSection.differentSegment = False
 
 
-    vramStart = -1
+    vramStart = None
     if input_name in fileAddresses:
         vramStart = fileAddresses[input_name].vramStart
 
-    f = FileSplits(array_of_bytes, input_name, context, splitsData=splitsData, relocSection=relocSection, vramStartParam=vramStart)
+    f = FileSplits(context, vramStart, input_name, array_of_bytes, splitsData=splitsData, relocSection=relocSection)
 
     f.analyze()
 
@@ -162,8 +164,9 @@ def ovlDisassemblerMain():
             rodataList.append((rodataName, rodataSection))
         for path, subFile in f.sectionsDict[FileSectionType.Text].items():
             assert(isinstance(subFile, Text))
-            for func in subFile.functions:
-                writeSplitedFunction(os.path.join(args.split_functions, subFile.filename), func, rodataList, context)
+            for func in subFile.symbolList:
+                assert isinstance(func, Function)
+                writeSplitedFunction(os.path.join(args.split_functions, subFile.name), func, rodataList, context)
         writeOtherRodata(args.split_functions, rodataList, context)
 
     if args.save_context is not None:
