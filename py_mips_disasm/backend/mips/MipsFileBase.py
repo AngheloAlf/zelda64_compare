@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from ..common.Utils import *
 from ..common.GlobalConfig import GlobalConfig
 from ..common.Context import Context
+from ..common.FileSectionType import FileSectionType
 
 from .MipsElementBase import ElementBase
 from .Symbols import SymbolBase
 
 
 class FileBase(ElementBase):
-    def __init__(self, context: Context, vram: int|None, filename: str, array_of_bytes: bytearray):
-        super().__init__(context, 0, vram, filename, bytesToBEWords(array_of_bytes))
+    def __init__(self, context: Context, vram: int|None, filename: str, array_of_bytes: bytearray, sectionType: FileSectionType):
+        super().__init__(context, 0, vram, filename, bytesToBEWords(array_of_bytes), sectionType)
         self.bytes: bytearray = array_of_bytes # TODO: Necessary?
 
         self.symbolList: list[SymbolBase] = []
@@ -128,12 +132,15 @@ class FileBase(ElementBase):
 
     def disassemble(self) -> str:
         output = ""
-        for sym in self.symbolList:
+        for i, sym in enumerate(self.symbolList):
             output += sym.disassemble()
+            if i + 1 < len(self.symbolList):
+                output += "\n"
         return output
 
     def disassembleToFile(self, f: TextIO):
         f.write(self.getAsmPrelude())
+        f.write("\n")
         f.write(self.disassemble())
 
 
@@ -152,4 +159,4 @@ class FileBase(ElementBase):
 
 
 def createEmptyFile() -> FileBase:
-    return FileBase(Context(), None, "", bytearray())
+    return FileBase(Context(), None, "", bytearray(), FileSectionType.Unknown)

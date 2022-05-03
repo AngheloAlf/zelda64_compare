@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import argparse
@@ -32,7 +35,11 @@ def elfObjDisasmMain():
 
     parser.add_argument("--data-output", help="Path to output the data and rodata disassembly")
 
+    GlobalConfig.addParametersToArgParse(parser)
+
     args = parser.parse_args()
+
+    GlobalConfig.parseArgs(args)
 
     GlobalConfig.REMOVE_POINTERS = False
     GlobalConfig.IGNORE_BRANCHES = False

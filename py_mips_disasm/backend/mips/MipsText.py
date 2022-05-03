@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from ..common.Utils import *
@@ -15,9 +18,7 @@ from .MipsFunction import Function
 
 class Text(Section):
     def __init__(self, context: Context, vram: int|None, filename: str, array_of_bytes: bytearray):
-        super().__init__(context, vram, filename, array_of_bytes)
-
-        self.sectionType = FileSectionType.Text
+        super().__init__(context, vram, filename, array_of_bytes, FileSectionType.Text)
 
         # TODO: do something with this information
         self.fileBoundaries: List[int] = list()
@@ -63,7 +64,7 @@ class Text(Section):
                         if isFake:
                             self.context.addFakeFunction(targetVram, targetFuncName)
                         else:
-                            self.context.addFunction(None, targetVram, targetFuncName)
+                            self.context.addFunction(targetVram, targetFuncName)
 
                 newFunctions.clear()
 
@@ -200,7 +201,7 @@ class Text(Section):
                     funcName = "func_" + toHex(vram, 6)[2:]
 
                 if GlobalConfig.DISASSEMBLE_UNKNOWN_INSTRUCTIONS or not hasUnimplementedIntrs:
-                    self.context.addFunction(self.name, vram, funcName)
+                    self.context.addFunction(vram, funcName)
                     funcSymbol = self.context.getFunction(vram)
                     if funcSymbol is not None:
                         funcSymbol.isDefined = True

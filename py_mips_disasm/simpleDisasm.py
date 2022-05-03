@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import argparse
@@ -64,6 +67,7 @@ def disassemblerMain():
         FileSectionType.Rodata: [],
         FileSectionType.Bss: [],
     }
+    processedFilesOutputPaths = {k: [] for k in processedFiles}
     lenLastLine = 80
 
     splits = FileSplitFormat()
@@ -121,7 +125,8 @@ def disassemblerMain():
         printVerbose(f"Reading '{row.fileName}'")
         f = createSectionFromSplitEntry(row, array_of_bytes, outputFilePath, context)
         analyzeSectionFromSplitEntry(f, row)
-        processedFiles[row.section].append((outputFilePath, f))
+        processedFiles[row.section].append(f)
+        processedFilesOutputPaths[row.section].append(outputFilePath)
 
         printQuietless(lenLastLine*" " + "\r", end="")
         progressStr = f" Analyzing: {i/splitsCount:%}. File: {row.fileName}\r"
@@ -152,7 +157,9 @@ def disassemblerMain():
     printVerbose("Writing files...")
     i = 0
     for section, filesInSection in processedFiles.items():
-        for path, f in filesInSection:
+        pathLists = processedFilesOutputPaths[section]
+        for fileIndex, f in enumerate(filesInSection):
+            path = pathLists[fileIndex]
             printVerbose(f"Writing {path}")
             printQuietless(lenLastLine*" " + "\r", end="")
             progressStr = f" Writing: {i/processedFilesCount:%}. File: {path}\r"
@@ -167,7 +174,7 @@ def disassemblerMain():
 
     if args.split_functions is not None:
         printVerbose("Spliting functions")
-        for path, f in processedFiles[FileSectionType.Text]:
+        for f in processedFiles[FileSectionType.Text]:
             file: Text = f
             for func in file.symbolList:
                 assert isinstance(func, Function)

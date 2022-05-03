@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from ..common.Utils import *
@@ -12,7 +15,7 @@ from .Symbols import SymbolText
 
 class Function(SymbolText):
     def __init__(self, context: Context, inFileOffset: int, vram: int|None, name: str, instructions: List[InstructionBase]):
-        super().__init__(context, inFileOffset, vram, name)
+        super().__init__(context, inFileOffset, vram, name, list())
         self.instructions: List[InstructionBase] = list(instructions)
 
         self.pointersRemoved: bool = False
@@ -289,7 +292,7 @@ class Function(SymbolText):
                     # self.context.addFakeFunction(target, "fakefunc_" + toHex(target, 8)[2:])
                     self.context.addFakeFunction(target, ".L" + toHex(target, 8)[2:])
                 else:
-                    self.context.addFunction(None, target, "func_" + toHex(target, 8)[2:])
+                    self.context.addFunction(target, "func_" + toHex(target, 8)[2:])
                 self.pointersPerInstruction[instructionOffset] = target
 
             # symbol finder
@@ -514,7 +517,7 @@ class Function(SymbolText):
         return was_updated
 
     def disassemble(self) -> str:
-        output = "\n"
+        output = ""
 
         if not GlobalConfig.DISASSEMBLE_UNKNOWN_INSTRUCTIONS:
             if self.hasUnimplementedIntrs:
@@ -523,12 +526,7 @@ class Function(SymbolText):
         if self.isLikelyHandwritten:
             output += "/* Handwritten function */\n"
 
-        if self.name != "":
-            output += f"glabel {self.name}"
-            if GlobalConfig.GLABEL_ASM_COUNT:
-                if self.index is not None:
-                    output += f" # {self.index}"
-            output += "\n"
+        output += self.getLabel()
 
         wasLastInstABranch = False
 
@@ -622,7 +620,10 @@ class Function(SymbolText):
                     elif currentVram in self.context.jumpTablesLabels:
                         label = "glabel " + labelAux.name + "\n"
                     else:
-                        label = labelAux.name + ":\n"
+                        if labelAux.name.startswith("."):
+                            label = labelAux.name + ":\n"
+                        else:
+                            label = "glabel " + labelAux.name + "\n"
                 elif label_offsetBranch is not None:
                     if instructionOffset == 0:
                         # Skip over this function to avoid duplication

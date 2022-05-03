@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from ..common.Utils import *
 from ..common.GlobalConfig import GlobalConfig
-from ..common.Context import Context, ContextSymbol, ContextOffsetSymbol
+from ..common.Context import Context, ContextSymbolBase
 from ..common.FileSectionType import FileSectionType
 
 
 class ElementBase:
-    def __init__(self, context: Context, inFileOffset: int, vram: int|None, name: str, words: list[int]=[]):
+    def __init__(self, context: Context, inFileOffset: int, vram: int|None, name: str, words: list[int], sectionType: FileSectionType):
         self.context: Context = context
         self.inFileOffset: int = inFileOffset
         self.vram: int|None = vram
         self.name: str = name
         self.words: list[int] = words
+        self.sectionType: FileSectionType = sectionType
 
         self.commentOffset: int = 0
         self.index: int|None = None
 
         self.parent: ElementBase|None = None
 
-        self.sectionType: FileSectionType = FileSectionType.Unknown
 
     @property
     def sizew(self) -> int:
@@ -39,28 +42,15 @@ class ElementBase:
         return self.vram + localOffset
         # return self.vram + self.inFileOffset + localOffset
 
-    def getSymbolLabelAtVram(self, vram: int, fallback="") -> str:
-        # if we have vram available, try to get the symbol name from the Context
-        if self.vram is not None:
-            sym = self.context.getAnySymbol(vram)
-            if sym is not None:
-                label = ""
-                if sym.isStatic:
-                    label += "\n/* static variable */"
-                label += "\nglabel " + sym.getSymbolPlusOffset(vram) + "\n"
-                return label
-        return fallback
-
-    def getSymbolLabelAtOffset(self, inFileOffset: int, fallback="") -> str:
-        # try to get the symbol name from the offset of the file (possibly from a .o elf file)
-        possibleSymbolName = self.context.getOffsetSymbol(inFileOffset, self.sectionType)
-        if possibleSymbolName is not None:
-            label = ""
-            if possibleSymbolName.isStatic:
-                label = "\n/* static variable */"
-            label += f"\nglabel {possibleSymbolName.name}\n"
+    def getLabelFromSymbol(self, sym: ContextSymbolBase|None) -> str:
+        if sym is not None:
+            label = sym.getSymbolLabel()
+            if GlobalConfig.GLABEL_ASM_COUNT:
+                if self.index is not None:
+                    label += f" # {self.index}"
+            label += "\n"
             return label
-        return fallback
+        return ""
 
 
     def analyze(self):

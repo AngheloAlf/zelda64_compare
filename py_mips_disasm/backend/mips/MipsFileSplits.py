@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: © 2022 Decompollaborate
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from typing import List
@@ -19,7 +22,7 @@ from .FilesHandlers import createSectionFromSplitEntry
 
 class FileSplits(FileBase):
     def __init__(self, context: Context, vram: int|None, filename: str, array_of_bytes: bytearray, splitsData: FileSplitFormat | None = None, relocSection: RelocZ64|None = None):
-        super().__init__(context, vram, filename, array_of_bytes)
+        super().__init__(context, vram, filename, array_of_bytes, FileSectionType.Unknown)
 
         self.sectionsDict: dict[FileSectionType, dict[str, Section]] = {
             FileSectionType.Text: dict(),
@@ -28,11 +31,6 @@ class FileSplits(FileBase):
             FileSectionType.Bss: dict(),
             FileSectionType.Reloc: dict(),
         }
-
-        for subfileVram, subfileData in context.files.items():
-            if filename == subfileData.name:
-                self.vram = subfileVram
-                break
 
         self.splitsDataList: List[FileSplitEntry] = []
 
