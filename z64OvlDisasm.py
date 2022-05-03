@@ -158,10 +158,10 @@ def ovlDisassemblerMain():
 
     if args.split_functions is not None:
         printVerbose("Spliting functions")
-        rodataList: List[Tuple[str, Rodata]] = list()
+        rodataList: List[Rodata] = list()
         for rodataName, rodataSection in f.sectionsDict[FileSectionType.Rodata].items():
             assert(isinstance(rodataSection, Rodata))
-            rodataList.append((rodataName, rodataSection))
+            rodataList.append(rodataSection)
         for path, subFile in f.sectionsDict[FileSectionType.Text].items():
             assert(isinstance(subFile, Text))
             for func in subFile.symbolList:

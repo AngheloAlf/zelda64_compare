@@ -20,13 +20,13 @@ class FileAddressesEntry:
 
         self.compressed = compressed == "Y"
 
-        self.vramStart = -1
+        self.vramStart: int|None = None
         if vramStart != "":
             self.vramStart = int(vramStart, 16)
-        self.vramEnd = -1
+        self.vramEnd: int|None = None
         if vramEnd != "":
             self.vramEnd = int(vramEnd, 16)
-        self.sizeVram = -1
+        self.sizeVram = 0
         if sizeVram != "":
             self.sizeVram = int(sizeVram, 16)
 
