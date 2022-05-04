@@ -37,11 +37,9 @@ def compare_baseroms(args, filelist):
     context_one.fillDefaultBannedSymbols()
     context_one.fillLibultraSymbols()
     context_one.fillHardwareRegs()
-    context_one.readFunctionMap(args.version1)
     context_two.fillDefaultBannedSymbols()
     context_two.fillLibultraSymbols()
     context_two.fillHardwareRegs()
-    context_two.readFunctionMap(args.version2)
     contextReadVariablesCsv(context_one, args.game, args.version1)
     contextReadVariablesCsv(context_two, args.game, args.version2)
     contextReadFunctionsCsv(context_one, args.game, args.version1)
@@ -172,8 +170,6 @@ def compare_to_csv(args, filelist):
 
     context_one = Context()
     context_two = Context()
-    context_one.readFunctionMap(args.version1)
-    context_two.readFunctionMap(args.version2)
 
     print(f"Index,File,Are equals,Size in {column1},Size in {column2},Size proportion,Size difference,Bytes different,Words different", end="")
     if not args.dont_split_files:

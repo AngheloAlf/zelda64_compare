@@ -219,7 +219,6 @@ def main():
         context.fillDefaultBannedSymbols()
         context.fillLibultraSymbols()
         context.fillHardwareRegs()
-        context.readFunctionMap(version)
         contextReadVariablesCsv(context, args.game, version)
         contextReadFunctionsCsv(context, args.game, version)
         contextPerVersion[version] = context

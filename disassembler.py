@@ -118,7 +118,6 @@ def disassemblerMain():
     context.fillDefaultBannedSymbols()
     context.fillLibultraSymbols()
     context.fillHardwareRegs()
-    context.readFunctionMap(args.version)
     contextReadVariablesCsv(context, args.game, args.version)
     contextReadFunctionsCsv(context, args.game, args.version)
 
