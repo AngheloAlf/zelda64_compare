@@ -125,7 +125,7 @@ def compareOverlayAcrossVersions(filename: str, game: str, versionsList: List[st
         elif filename in ("code", "boot", "n64dd"):
             f = FileSplits(contextPerVersion[version], None, filename, array_of_bytes, splitsData=splitsData)
         else:
-            f = Section(contextPerVersion[version], None, filename, array_of_bytes)
+            f = Section(contextPerVersion[version], None, filename, array_of_bytes, FileSectionType.Unknown)
 
         f.analyze()
 

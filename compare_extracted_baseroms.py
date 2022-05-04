@@ -8,6 +8,7 @@ import os
 import py_mips_disasm.backend.common.Utils as disasm_Utils
 from py_mips_disasm.backend.common.GlobalConfig import GlobalConfig
 from py_mips_disasm.backend.common.Context import Context
+from py_mips_disasm.backend.common.FileSectionType import FileSectionType
 from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
 
 from py_mips_disasm.backend.mips.MipsSection import Section
@@ -84,8 +85,8 @@ def compare_baseroms(args, filelist):
             file_one = FileSplits(context_one, None, filename, file_one_data, splitsData=splitsDataOne)
             file_two = FileSplits(context_two, None, filename, file_two_data, splitsData=splitsDataTwo)
         else:
-            file_one = Section(context_one, None, filename, file_one_data)
-            file_two = Section(context_two, None, filename, file_two_data)
+            file_one = Section(context_one, None, filename, file_one_data, FileSectionType.Unknown)
+            file_two = Section(context_two, None, filename, file_two_data, FileSectionType.Unknown)
 
         file_one.analyze()
         file_two.analyze()
@@ -232,8 +233,8 @@ def compare_to_csv(args, filelist):
                 file_one = FileSplits(context_one, None, filename, file_one_data, splitsData=splitsDataOne)
                 file_two = FileSplits(context_two, None, filename, file_two_data, splitsData=splitsDataTwo)
             else:
-                file_one = Section(context_one, None, filename, file_one_data)
-                file_two = Section(context_two, None, filename, file_two_data)
+                file_one = Section(context_one, None, filename, file_one_data, FileSectionType.Unknown)
+                file_two = Section(context_two, None, filename, file_two_data, FileSectionType.Unknown)
 
             file_one.analyze()
             file_two.analyze()
