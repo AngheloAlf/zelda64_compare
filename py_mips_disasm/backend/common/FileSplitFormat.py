@@ -5,8 +5,7 @@
 
 from __future__ import annotations
 
-from .Utils import *
-
+from . import Utils
 from .FileSectionType import FileSectionType
 
 
@@ -61,7 +60,10 @@ class FileSplitFormat:
             elif fileName == ".end":
                 break
 
-            vram = int(vram, 16)
+            if vram.lower() == "none":
+                vram = None
+            else:
+                vram = int(vram, 16)
             offset = int(offset, 16)
             nextOffset = 0xFFFFFF
             if i + 1 < len(self.splits):
@@ -78,7 +80,7 @@ class FileSplitFormat:
             yield FileSplitEntry(offset, vram, fileName, section, nextOffset, isHandwritten, isRsp)
 
     def readCsvFile(self, csvPath: str):
-        self.splits = readCsv(csvPath)
+        self.splits = Utils.readCsv(csvPath)
         self.splits = [x for x in self.splits if len(x) > 0]
 
     def append(self, element: FileSplitEntry | list[str]):
@@ -90,7 +92,9 @@ class FileSplitFormat:
             elif element.isHandwritten:
                 offset += "H"
 
-            vram = f"{element.vram:X}"
+            vram = "None"
+            if element.vram is not None:
+                vram = f"{element.vram:X}"
             fileName = element.fileName
 
             if element.section != FileSectionType.Invalid:
@@ -113,5 +117,8 @@ class FileSplitFormat:
             # TODO: error message
             raise TypeError()
 
-    def appendEndSection(self, offset: int, vram: int):
-        self.splits.append([f"{offset:X}", f"{vram:X}", ".end"])
+    def appendEndSection(self, offset: int, vram: int|None):
+        vramStr = "None"
+        if vram is not None:
+            vramStr = f"{vram:X}"
+        self.splits.append([f"{offset:X}", vramStr, ".end"])

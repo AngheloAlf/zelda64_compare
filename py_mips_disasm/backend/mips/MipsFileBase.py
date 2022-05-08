@@ -5,30 +5,27 @@
 
 from __future__ import annotations
 
-from ..common.Utils import *
-from ..common.GlobalConfig import GlobalConfig
-from ..common.Context import Context
-from ..common.FileSectionType import FileSectionType
+import sys
+from typing import TextIO
+
+from .. import common
+
+from . import symbols
 
 from .MipsElementBase import ElementBase
-from .Symbols import SymbolBase
 
 
 class FileBase(ElementBase):
-    def __init__(self, context: Context, vram: int|None, filename: str, array_of_bytes: bytearray, sectionType: FileSectionType):
-        super().__init__(context, 0, vram, filename, bytesToBEWords(array_of_bytes), sectionType)
-        self.bytes: bytearray = array_of_bytes # TODO: Necessary?
+    def __init__(self, context: common.Context, vram: int|None, filename: str, array_of_bytes: bytearray, sectionType: common.FileSectionType):
+        super().__init__(context, 0, vram, filename, common.Utils.bytesToBEWords(array_of_bytes), sectionType)
 
-        self.symbolList: list[SymbolBase] = []
+        self.symbolList: list[symbols.SymbolBase] = []
 
         self.pointersOffsets: set[int] = set()
 
         self.isHandwritten: bool = False
         self.isRsp: bool = False
 
-    @property
-    def size(self) -> int:
-        return len(self.bytes)
 
     def setCommentOffset(self, commentOffset: int):
         self.commentOffset = commentOffset
@@ -42,7 +39,7 @@ class FileBase(ElementBase):
         return self.vram + self.inFileOffset + localOffset
 
     def generateAsmLineComment(self, localOffset: int, wordValue: int|None = None) -> str:
-        if not GlobalConfig.ASM_COMMENT:
+        if not common.GlobalConfig.ASM_COMMENT:
             return ""
         offsetHex = f"{localOffset + self.inFileOffset + self.commentOffset:06X}"
 
@@ -74,7 +71,9 @@ class FileBase(ElementBase):
         return output
 
     def getHash(self) -> str:
-        return getStrHash(self.bytes)
+        buffer = bytearray(4*len(self.words))
+        common.Utils.beWordsToBytes(self.words, buffer)
+        return common.Utils.getStrHash(buffer)
 
     def printAnalyzisResults(self):
         pass
@@ -87,8 +86,8 @@ class FileBase(ElementBase):
             "equal": hash_one == hash_two,
             "hash_one": hash_one,
             "hash_two": hash_two,
-            "size_one": self.size,
-            "size_two": other_file.size,
+            "size_one": self.sizew * 4,
+            "size_two": other_file.sizew * 4,
             "diff_bytes": 0,
             "diff_words": 0,
         }
@@ -97,10 +96,11 @@ class FileBase(ElementBase):
         diff_words = 0
 
         if not result["equal"]:
-            min_len = min(self.size, other_file.size)
+            min_len = min(self.sizew, other_file.sizew)
             for i in range(min_len):
-                if self.bytes[i] != other_file.bytes[i]:
-                    diff_bytes += 1
+                for j in range(4):
+                    if (self.words[i] & (0xFF << (j * 8))) != (other_file.words[i] & (0xFF << (j * 8))):
+                        diff_bytes += 1
 
             min_len = min(self.sizew, other_file.sizew)
             for i in range(min_len):
@@ -113,21 +113,16 @@ class FileBase(ElementBase):
         return result
 
     def blankOutDifferences(self, other: FileBase) -> bool:
-        if not GlobalConfig.REMOVE_POINTERS:
+        if not common.GlobalConfig.REMOVE_POINTERS:
             return False
 
         return False
 
     def removePointers(self) -> bool:
-        if not GlobalConfig.REMOVE_POINTERS:
+        if not common.GlobalConfig.REMOVE_POINTERS:
             return False
 
         return False
-
-    def updateBytes(self):
-        beWordsToBytes(self.words, self.bytes)
-        # Truncate extra data
-        self.bytes = self.bytes[:self.sizew*4]
 
 
     def disassemble(self) -> str:
@@ -151,12 +146,14 @@ class FileBase(ElementBase):
         if filepath == "-":
             self.disassembleToFile(sys.stdout)
         else:
-            if GlobalConfig.WRITE_BINARY:
-                if self.size > 0:
-                    writeBytearrayToFile(filepath + self.sectionType.toStr(), self.bytes)
+            if common.GlobalConfig.WRITE_BINARY:
+                if self.sizew > 0:
+                    buffer = bytearray(4*len(self.words))
+                    common.Utils.beWordsToBytes(self.words, buffer)
+                    common.Utils.writeBytearrayToFile(filepath + self.sectionType.toStr(), buffer)
             with open(filepath + self.sectionType.toStr() + ".s", "w") as f:
                 self.disassembleToFile(f)
 
 
 def createEmptyFile() -> FileBase:
-    return FileBase(Context(), None, "", bytearray(), FileSectionType.Unknown)
+    return FileBase(common.Context(), None, "", bytearray(), common.FileSectionType.Unknown)

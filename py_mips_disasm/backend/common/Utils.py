@@ -10,13 +10,31 @@ import os
 import hashlib
 import json
 import struct
-from typing import List, Dict, Tuple, Set, Any, TextIO
 import subprocess
 import sys
-import shutil
+
+from .GlobalConfig import GlobalConfig, InputEndian
+
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
+def printQuietless(*args, **kwargs):
+    if not GlobalConfig.QUIET:
+        print(*args, **kwargs)
+
+def epprintQuietless(*args, **kwargs):
+    if not GlobalConfig.QUIET:
+        print(*args, file=sys.stderr, **kwargs)
+
+
+def printVerbose(*args, **kwargs):
+    if not GlobalConfig.QUIET and GlobalConfig.VERBOSE:
+        print(*args, **kwargs)
+
+def eprintVerbose(*args, **kwargs):
+    if not GlobalConfig.QUIET and GlobalConfig.VERBOSE:
+        print(*args, file=sys.stderr, **kwargs)
 
 # https://stackoverflow.com/questions/1512457/determining-if-stdout-for-a-python-process-is-redirected
 def isStdoutRedirected() -> bool:
@@ -36,7 +54,7 @@ def readFileAsBytearray(filepath: str) -> bytearray:
     with open(filepath, mode="rb") as f:
         return bytearray(f.read())
 
-def readFile(filepath: str) -> List[str]:
+def readFile(filepath: str) -> list[str]:
     with open(filepath) as f:
         return [x.strip() for x in f.readlines()]
 
@@ -45,14 +63,24 @@ def readJson(filepath):
         return json.load(f)
 
 def removeExtraWhitespace(line: str) -> str:
-    return" ".join(line.split())
+    return " ".join(line.split())
 
-def bytesToBEWords(array_of_bytes: bytearray) -> List[int]:
+def bytesToBEWords(array_of_bytes: bytearray) -> list[int]:
+    if GlobalConfig.ENDIAN == InputEndian.MIDDLE:
+        # Convert middle endian to big endian
+        halfwords = str(int(len(array_of_bytes)//2))
+        little_byte_format = f"<{halfwords}H"
+        big_byte_format = f">{halfwords}H"
+        tmp = struct.unpack_from(little_byte_format, array_of_bytes, 0)
+        struct.pack_into(big_byte_format, array_of_bytes, 0, *tmp)
+
     words = len(array_of_bytes)//4
-    big_endian_format = f">{words}I"
-    return list(struct.unpack_from(big_endian_format, array_of_bytes, 0))
+    endian_format = f">{words}I"
+    if GlobalConfig.ENDIAN == InputEndian.LITTLE:
+        endian_format = f"<{words}I"
+    return list(struct.unpack_from(endian_format, array_of_bytes, 0))
 
-def beWordsToBytes(words_list: List[int], buffer: bytearray) -> bytearray:
+def beWordsToBytes(words_list: list[int], buffer: bytearray) -> bytearray:
     words = len(words_list)
     big_endian_format = f">{words}I"
     struct.pack_into(big_endian_format, buffer, 0, *words_list)
@@ -64,7 +92,7 @@ def wordToFloat(word: int) -> float:
 def qwordToDouble(qword: int) -> float:
     return struct.unpack('>d', struct.pack('>Q', qword))[0]
 
-def runCommandGetOutput(command: str, args: List[str]) -> List[str] | None:
+def runCommandGetOutput(command: str, args: list[str]) -> list[str] | None:
     try:
         output = subprocess.check_output([command, *args]).decode("utf-8")
         return output.strip().split("\n")
@@ -80,12 +108,8 @@ def from2Complement(number: int, bits: int) -> int:
         return -((~number + 1) & ((1 << bits) - 1))
     return number
 
-def readVersionedFileAsBytearrray(file: str, game: str, version: str) -> bytearray:
-    filename = os.path.join(game, version, "baserom", file)
-    return readFileAsBytearray(filename)
-
-def readCsv(filepath: str) -> List[List[str]]:
-    data: List[List[str]] = []
+def readCsv(filepath: str) -> list[list[str]]:
+    data: list[list[str]] = []
     with open(filepath) as f:
         lines = f.readlines()
         processedLines = [x.strip().split("#")[0] for x in lines]
@@ -95,7 +119,7 @@ def readCsv(filepath: str) -> List[List[str]]:
 
     return data
 
-def decodeString(buf: bytearray, offset: int) -> Tuple[str, int]:
+def decodeString(buf: bytearray, offset: int) -> tuple[str, int]:
     # Escape characters that are unlikely to be used
     bannedEscapeCharacters = [
         0x01,

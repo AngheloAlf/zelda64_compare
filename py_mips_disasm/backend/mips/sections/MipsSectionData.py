@@ -5,18 +5,16 @@
 
 from __future__ import annotations
 
-from ..common.Utils import *
-from ..common.GlobalConfig import GlobalConfig
-from ..common.Context import Context
-from ..common.FileSectionType import FileSectionType
+from ... import common
 
-from .MipsSection import Section
-from .Symbols import SymbolData
+from .. import symbols
+
+from . import SectionBase
 
 
-class Data(Section):
-    def __init__(self, context: Context, vram: int|None, filename: str, array_of_bytes: bytearray):
-        super().__init__(context, vram, filename, array_of_bytes, FileSectionType.Data)
+class SectionData(SectionBase):
+    def __init__(self, context: common.Context, vram: int|None, filename: str, array_of_bytes: bytearray):
+        super().__init__(context, vram, filename, array_of_bytes, common.FileSectionType.Data)
 
 
     def analyze(self):
@@ -55,14 +53,14 @@ class Data(Section):
                 nextOffset = symbolList[i+1][0]
                 words = self.words[offset//4:nextOffset//4]
 
-            sym = SymbolData(self.context, offset + self.inFileOffset, vram, symName, words)
+            sym = symbols.SymbolData(self.context, offset + self.inFileOffset, vram, symName, words)
             sym.setCommentOffset(self.commentOffset)
             sym.analyze()
             self.symbolList.append(sym)
 
 
     def removePointers(self) -> bool:
-        if not GlobalConfig.REMOVE_POINTERS:
+        if not common.GlobalConfig.REMOVE_POINTERS:
             return False
 
         was_updated = False
