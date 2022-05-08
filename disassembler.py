@@ -45,13 +45,13 @@ def disassembleFile(version: str, filename: str, game: str, outputfolder: str, c
 
         text_data = array_of_bytes
         if textend >= 0:
-            print(f"Parsing until offset {disasmBack.Utils.toHex(textend, 2)}")
+            print(f"Parsing until offset 0x{textend:02X}")
             text_data = array_of_bytes[:textend]
 
         f = disasmBack.mips.sections.SectionText(context, None, filename, text_data)
 
     if vram >= 0:
-        print(f"Using VRAM {disasmBack.Utils.toHex(vram, 8)[2:]}")
+        print(f"Using VRAM {vram:08X}")
         f.setVram(vram)
 
     f.analyze()

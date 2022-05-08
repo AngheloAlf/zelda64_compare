@@ -104,7 +104,7 @@ def getFileStartsFromEntries(splits: dict[str, SplitEntry], fileEndOffset: int) 
             starts[i] = (start, nextStart-start, filename)
 
         if end < nextStart:
-            starts.insert(i+1, (end, -1, f"file_{disasmBack.Utils.toHex(end, 6)}"))
+            starts.insert(i+1, (end, -1, f"file_{end:06X}"))
 
         i += 1
 
