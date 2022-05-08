@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import Dict
-from py_mips_disasm.backend.common.Context import Context
+
+import py_mips_disasm.backend as disasmBack
 
 
 class FileAddressesEntry:
@@ -35,8 +35,8 @@ class FileAddressesEntry:
         self.number = number
 
 
-def getFileAddresses(filePath: str | None) -> Dict[str, FileAddressesEntry]:
-    table: Dict[str, FileAddressesEntry] = dict()
+def getFileAddresses(filePath: str | None) -> dict[str, FileAddressesEntry]:
+    table: dict[str, FileAddressesEntry] = dict()
     if filePath is not None and os.path.exists(filePath):
         with open(filePath) as f:
             header = True
@@ -50,12 +50,12 @@ def getFileAddresses(filePath: str | None) -> Dict[str, FileAddressesEntry]:
     return table
 
 
-def contextReadVariablesCsv(context: Context, game: str, version: str):
+def contextReadVariablesCsv(context: disasmBack.Context, game: str, version: str):
     variablesPath = os.path.join(game, version, "tables", f"variables.csv")
     if os.path.exists(variablesPath):
         context.readVariablesCsv(variablesPath)
 
-def contextReadFunctionsCsv(context: Context, game: str, version: str):
+def contextReadFunctionsCsv(context: disasmBack.Context, game: str, version: str):
     functionsPath = os.path.join(game, version, "tables", f"functions.csv")
     if os.path.exists(functionsPath):
         context.readFunctionsCsv(functionsPath)

@@ -4,36 +4,27 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import Dict
 
-import py_mips_disasm.backend.common.Utils as disasm_Utils
-from py_mips_disasm.backend.common.GlobalConfig import GlobalConfig
-from py_mips_disasm.backend.common.Context import Context
-from py_mips_disasm.backend.common.FileSectionType import FileSectionType
-from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
-
-from py_mips_disasm.backend.mips.MipsText import Text
-from py_mips_disasm.backend.mips.MipsRelocZ64 import RelocZ64
-from py_mips_disasm.backend.mips.MipsFileSplits import FileSplits
+import py_mips_disasm.backend as disasmBack
 
 from mips.ZeldaTables import contextReadVariablesCsv, contextReadFunctionsCsv, getFileAddresses
 
 
-def disassembleFile(version: str, filename: str, game: str, outputfolder: str, context: Context, vram: int = -1, textend: int = -1):
+def disassembleFile(version: str, filename: str, game: str, outputfolder: str, context: disasmBack.Context, vram: int = -1, textend: int = -1):
     is_overlay = filename.startswith("ovl_")
 
     path = os.path.join(game, version, "baserom", filename)
 
-    array_of_bytes = disasm_Utils.readFileAsBytearray(path)
+    array_of_bytes = disasmBack.Utils.readFileAsBytearray(path)
     if len(array_of_bytes) == 0:
-        disasm_Utils.eprint(f"File '{path}' not found!")
+        disasmBack.Utils.eprint(f"File '{path}' not found!")
         exit(-1)
 
     splitsData = None
     tablePath = os.path.join(game, version, "tables", f"files_{filename}.csv")
     if os.path.exists(tablePath):
         # print(tablePath)
-        splitsData = FileSplitFormat()
+        splitsData = disasmBack.FileSplitFormat()
         splitsData.readCsvFile(tablePath)
 
     if is_overlay:
@@ -44,23 +35,23 @@ def disassembleFile(version: str, filename: str, game: str, outputfolder: str, c
         if filename in fileAddresses:
             vramStart = fileAddresses[filename].vramStart
 
-        relocSection = RelocZ64(context, None, filename, array_of_bytes)
-        f = FileSplits(context, vramStart, filename, array_of_bytes, relocSection=relocSection)
+        relocSection = disasmBack.mips.sections.SectionRelocZ64(context, None, filename, array_of_bytes)
+        f = disasmBack.mips.FileSplits(context, vramStart, filename, array_of_bytes, relocSection=relocSection)
     elif filename in ("code", "boot", "n64dd"):
         print(f"{filename} detected. Parsing...")
-        f = FileSplits(context, None, filename, array_of_bytes, splitsData=splitsData)
+        f = disasmBack.mips.FileSplits(context, None, filename, array_of_bytes, splitsData=splitsData)
     else:
         print("Unknown file type. Assuming .text. Parsing...")
 
         text_data = array_of_bytes
         if textend >= 0:
-            print(f"Parsing until offset {disasm_Utils.toHex(textend, 2)}")
+            print(f"Parsing until offset {disasmBack.Utils.toHex(textend, 2)}")
             text_data = array_of_bytes[:textend]
 
-        f = Text(context, None, filename, text_data)
+        f = disasmBack.mips.sections.SectionText(context, None, filename, text_data)
 
     if vram >= 0:
-        print(f"Using VRAM {disasm_Utils.toHex(vram, 8)[2:]}")
+        print(f"Using VRAM {disasmBack.Utils.toHex(vram, 8)[2:]}")
         f.setVram(vram)
 
     f.analyze()
@@ -73,9 +64,9 @@ def disassembleFile(version: str, filename: str, game: str, outputfolder: str, c
     new_file_path = os.path.join(new_file_folder, filename)
 
     nBoundaries: int = 0
-    if isinstance(f, FileSplits):
-        for name, text in f.sectionsDict[FileSectionType.Text].items():
-            assert(isinstance(text, Text))
+    if isinstance(f, disasmBack.mips.FileSplits):
+        for name, text in f.sectionsDict[disasmBack.FileSectionType.Text].items():
+            assert(isinstance(text, disasmBack.mips.sections.SectionText))
             nBoundaries += len(text.fileBoundaries)
     else:
         nBoundaries += len(f.fileBoundaries)
@@ -104,17 +95,13 @@ def disassemblerMain():
     parser.add_argument("--save-context", help="Saves the context to a file. The provided filename will be suffixed with the corresponding version.", metavar="FILENAME")
     args = parser.parse_args()
 
-    GlobalConfig.REMOVE_POINTERS = False
-    GlobalConfig.IGNORE_BRANCHES = False
-    GlobalConfig.WRITE_BINARY = False
-    GlobalConfig.ASM_COMMENT = not args.disable_asm_comments
-    GlobalConfig.PRODUCE_SYMBOLS_PLUS_OFFSET = True
-    # GlobalConfig.TRUST_USER_FUNCTIONS = True
-    # GlobalConfig.DISASSEMBLE_UNKNOWN_INSTRUCTIONS = args.disasm_unknown
-    # GlobalConfig.VERBOSE = args.verbose
-    # GlobalConfig.QUIET = args.quiet
+    disasmBack.GlobalConfig.REMOVE_POINTERS = False
+    disasmBack.GlobalConfig.IGNORE_BRANCHES = False
+    disasmBack.GlobalConfig.WRITE_BINARY = False
+    disasmBack.GlobalConfig.ASM_COMMENT = not args.disable_asm_comments
+    disasmBack.GlobalConfig.PRODUCE_SYMBOLS_PLUS_OFFSET = True
 
-    context = Context()
+    context = disasmBack.Context()
     context.fillDefaultBannedSymbols()
     context.fillLibultraSymbols()
     context.fillHardwareRegs()

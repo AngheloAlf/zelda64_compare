@@ -5,7 +5,8 @@ from __future__ import annotations
 import argparse
 import os
 
-import py_mips_disasm.backend.common.Utils as disasm_Utils
+import py_mips_disasm.backend as disasmBack
+
 from mips.MipsSplitEntry import readSplitsFromCsv
 
 
@@ -109,7 +110,7 @@ def split_functions(game: str):
 
     tablePerVersion: dict[str, dict[int, str]] = dict()
 
-    functions = disasm_Utils.readCsv(csvPath)
+    functions = disasmBack.Utils.readCsv(csvPath)
 
     columnsToDiscard = 1
     if functions[0][1] != "":
@@ -135,19 +136,19 @@ def split_functions(game: str):
 
             vram = int(vramStr, 16)
             if vram in tablePerVersion[version]:
-                disasm_Utils.eprint(f"Warning: Duplicated function's VRAM found in version '{version}'")
+                disasmBack.Utils.eprint(f"Warning: Duplicated function's VRAM found in version '{version}'")
                 oldFuncName = tablePerVersion[version][vram]
-                disasm_Utils.eprint(f"\t old: {vram:08X},{oldFuncName}")
-                disasm_Utils.eprint(f"\t new: {vram:08X},{funcName}")
-                disasm_Utils.eprint(f"\t Discarding old")
+                disasmBack.Utils.eprint(f"\t old: {vram:08X},{oldFuncName}")
+                disasmBack.Utils.eprint(f"\t new: {vram:08X},{funcName}")
+                disasmBack.Utils.eprint(f"\t Discarding old")
             if funcName in tablePerVersion[version].values():
-                disasm_Utils.eprint(f"Warning: Duplicated function name found in version '{version}'")
+                disasmBack.Utils.eprint(f"Warning: Duplicated function name found in version '{version}'")
                 oldVram = vram
                 for oldVram, oldFuncName in tablePerVersion[version].items():
                     if funcName == oldFuncName:
                         break
-                disasm_Utils.eprint(f"\t old: {oldVram:08X},{funcName}")
-                disasm_Utils.eprint(f"\t new: {vram:08X},{funcName}")
+                disasmBack.Utils.eprint(f"\t old: {oldVram:08X},{funcName}")
+                disasmBack.Utils.eprint(f"\t new: {vram:08X},{funcName}")
 
             tablePerVersion[version][vram] = funcName
 
@@ -164,7 +165,7 @@ def split_variables(game: str):
 
     tablePerVersion: dict[str, dict[int, tuple[str, str, int]]] = dict()
 
-    variables = disasm_Utils.readCsv(csvPath)
+    variables = disasmBack.Utils.readCsv(csvPath)
     header = variables[0][3:]
     for i in range(2, len(variables)):
         varName, type, _, *data = variables[i]
@@ -188,16 +189,16 @@ def split_variables(game: str):
             vram = int(vramStr, 16)
             size = int(sizeStr, 16)
             if vram in tablePerVersion[version]:
-                disasm_Utils.eprint(f"Warning: Duplicated variable's VRAM found in version '{version}'")
+                disasmBack.Utils.eprint(f"Warning: Duplicated variable's VRAM found in version '{version}'")
                 oldVarName, oldType, oldSize = tablePerVersion[version][vram]
-                disasm_Utils.eprint(f"\t old: {vram:08X},{oldVarName},{oldType},0x{oldSize:X}")
-                disasm_Utils.eprint(f"\t new: {vram:08X},{varName},{type},0x{size:X}")
-                disasm_Utils.eprint(f"\t Discarding old")
+                disasmBack.Utils.eprint(f"\t old: {vram:08X},{oldVarName},{oldType},0x{oldSize:X}")
+                disasmBack.Utils.eprint(f"\t new: {vram:08X},{varName},{type},0x{size:X}")
+                disasmBack.Utils.eprint(f"\t Discarding old")
             for oldVram, (oldVarName, oldType, oldSize) in tablePerVersion[version].items():
                 if varName == oldVarName:
-                    disasm_Utils.eprint(f"Warning: Duplicated variable name found in version '{version}'")
-                    disasm_Utils.eprint(f"\t old: {oldVram:08X},{oldVarName},{oldType},0x{oldSize:X}")
-                    disasm_Utils.eprint(f"\t new: {vram:08X},{varName},{type},0x{size:X}")
+                    disasmBack.Utils.eprint(f"Warning: Duplicated variable name found in version '{version}'")
+                    disasmBack.Utils.eprint(f"\t old: {oldVram:08X},{oldVarName},{oldType},0x{oldSize:X}")
+                    disasmBack.Utils.eprint(f"\t new: {vram:08X},{varName},{type},0x{size:X}")
                     break
 
             tablePerVersion[version][vram] = (varName, type, size)

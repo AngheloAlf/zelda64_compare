@@ -4,25 +4,15 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import List, Tuple
+from typing import List
 
-import py_mips_disasm.backend.common.Utils as disasm_Utils
-from py_mips_disasm.backend.common.GlobalConfig import GlobalConfig, printQuietless, printVerbose
-from py_mips_disasm.backend.common.Context import Context
-from py_mips_disasm.backend.common.FileSectionType import FileSectionType
-from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
-
-from py_mips_disasm.backend.mips.MipsText import Text
-from py_mips_disasm.backend.mips.MipsFunction import Function
-from py_mips_disasm.backend.mips.MipsRodata import Rodata
-from py_mips_disasm.backend.mips.MipsRelocZ64 import RelocZ64
-from py_mips_disasm.backend.mips.FilesHandlers import writeSplitedFunction, writeOtherRodata
-from py_mips_disasm.backend.mips.MipsFileSplits import FileSplits
+import py_mips_disasm.backend as disasmBack
 
 from mips.ZeldaTables import getFileAddresses
 
-def writeFiles(ovlSection: FileSplits, textOutput: str, dataOutput: str|None):
-    printVerbose("Writing files...")
+
+def writeFiles(ovlSection: disasmBack.mips.FileSplits, textOutput: str, dataOutput: str|None):
+    disasmBack.Utils.printVerbose("Writing files...")
 
     if dataOutput is None:
         dataOutput = textOutput
@@ -42,11 +32,11 @@ def writeFiles(ovlSection: FileSplits, textOutput: str, dataOutput: str|None):
     if head != "":
         os.makedirs(head, exist_ok=True)
 
-    for subFileName, section in ovlSection.sectionsDict[FileSectionType.Text].items():
+    for subFileName, section in ovlSection.sectionsDict[disasmBack.FileSectionType.Text].items():
         section.saveToFile(os.path.join(textOutput, subFileName))
 
     for sectionType, filesinSection in ovlSection.sectionsDict.items():
-        if sectionType == FileSectionType.Text:
+        if sectionType == disasmBack.FileSectionType.Text:
             continue
         for subFileName, section in filesinSection.items():
             section.saveToFile(os.path.join(dataOutput, subFileName))
@@ -90,35 +80,35 @@ def ovlDisassemblerMain():
 
     parser.add_argument("--nuke-pointers", help="Use every technique available to remove pointers", action="store_true")
 
-    Context.addParametersToArgParse(parser)
+    disasmBack.Context.addParametersToArgParse(parser)
 
-    GlobalConfig.addParametersToArgParse(parser)
+    disasmBack.GlobalConfig.addParametersToArgParse(parser)
 
     parser.add_argument("--add-filename", help="Adds the filename of the file to the generated function/variable name")
 
     args = parser.parse_args()
 
-    GlobalConfig.parseArgs(args)
+    disasmBack.GlobalConfig.parseArgs(args)
 
-    GlobalConfig.REMOVE_POINTERS = args.nuke_pointers
-    GlobalConfig.IGNORE_BRANCHES = args.nuke_pointers
+    disasmBack.GlobalConfig.REMOVE_POINTERS = args.nuke_pointers
+    disasmBack.GlobalConfig.IGNORE_BRANCHES = args.nuke_pointers
     if args.nuke_pointers:
-        GlobalConfig.IGNORE_WORD_LIST.add(0x80)
+        disasmBack.GlobalConfig.IGNORE_WORD_LIST.add(0x80)
 
-    GlobalConfig.PRODUCE_SYMBOLS_PLUS_OFFSET = True
-    GlobalConfig.TRUST_USER_FUNCTIONS = True
+    disasmBack.GlobalConfig.PRODUCE_SYMBOLS_PLUS_OFFSET = True
+    disasmBack.GlobalConfig.TRUST_USER_FUNCTIONS = True
 
 
-    context = Context()
+    context = disasmBack.Context()
     context.parseArgs(args)
 
-    array_of_bytes = disasm_Utils.readFileAsBytearray(args.binary)
+    array_of_bytes = disasmBack.Utils.readFileAsBytearray(args.binary)
     input_name = os.path.splitext(os.path.split(args.binary)[1])[0]
 
 
     splitsData = None
     if args.file_splits is not None and os.path.exists(args.file_splits):
-        splitsData = FileSplitFormat()
+        splitsData = disasmBack.FileSplitFormat()
         splitsData.readCsvFile(args.file_splits)
 
     fileAddresses = getFileAddresses(args.file_addresses)
@@ -130,10 +120,10 @@ def ovlDisassemblerMain():
         vram = None
         if reloc_filename in fileAddresses:
             vram = fileAddresses[reloc_filename].vramStart
-        relocSection = RelocZ64(context, vram, input_name, disasm_Utils.readFileAsBytearray(reloc_path))
+        relocSection = disasmBack.mips.sections.SectionRelocZ64(context, vram, input_name, disasmBack.Utils.readFileAsBytearray(reloc_path))
         relocSection.differentSegment = True
     else:
-        relocSection = RelocZ64(context, None, input_name, array_of_bytes)
+        relocSection = disasmBack.mips.sections.SectionRelocZ64(context, None, input_name, array_of_bytes)
         relocSection.differentSegment = False
 
 
@@ -141,33 +131,33 @@ def ovlDisassemblerMain():
     if input_name in fileAddresses:
         vramStart = fileAddresses[input_name].vramStart
 
-    f = FileSplits(context, vramStart, input_name, array_of_bytes, splitsData=splitsData, relocSection=relocSection)
+    f = disasmBack.mips.FileSplits(context, vramStart, input_name, array_of_bytes, splitsData=splitsData, relocSection=relocSection)
 
     f.analyze()
 
-    if GlobalConfig.VERBOSE:
+    if disasmBack.GlobalConfig.VERBOSE:
         for sectDict in f.sectionsDict.values():
             for section in sectDict.values():
                 section.printAnalyzisResults()
 
     if args.nuke_pointers:
-        printVerbose("Nuking pointers...")
+        disasmBack.Utils.printVerbose("Nuking pointers...")
         f.removePointers()
 
     writeFiles(f, args.output, args.data_output)
 
     if args.split_functions is not None:
-        printVerbose("Spliting functions")
-        rodataList: List[Rodata] = list()
-        for rodataName, rodataSection in f.sectionsDict[FileSectionType.Rodata].items():
-            assert(isinstance(rodataSection, Rodata))
+        disasmBack.Utils.printVerbose("Spliting functions")
+        rodataList: List[disasmBack.mips.sections.SectionRodata] = list()
+        for rodataName, rodataSection in f.sectionsDict[disasmBack.FileSectionType.Rodata].items():
+            assert(isinstance(rodataSection, disasmBack.mips.sections.SectionRodata))
             rodataList.append(rodataSection)
-        for path, subFile in f.sectionsDict[FileSectionType.Text].items():
-            assert(isinstance(subFile, Text))
+        for path, subFile in f.sectionsDict[disasmBack.FileSectionType.Text].items():
+            assert(isinstance(subFile, disasmBack.mips.sections.SectionText))
             for func in subFile.symbolList:
-                assert isinstance(func, Function)
-                writeSplitedFunction(os.path.join(args.split_functions, subFile.name), func, rodataList, context)
-        writeOtherRodata(args.split_functions, rodataList, context)
+                assert isinstance(func, disasmBack.mips.symbols.SymbolFunction)
+                disasmBack.mips.FilesHandlers.writeSplitedFunction(os.path.join(args.split_functions, subFile.name), func, rodataList, context)
+        disasmBack.mips.FilesHandlers.writeOtherRodata(args.split_functions, rodataList, context)
 
     if args.save_context is not None:
         head, tail = os.path.split(args.save_context)

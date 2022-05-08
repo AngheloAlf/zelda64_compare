@@ -5,15 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 
-import py_mips_disasm.backend.common.Utils as disasm_Utils
-from py_mips_disasm.backend.common.GlobalConfig import GlobalConfig
-from py_mips_disasm.backend.common.Context import Context
-from py_mips_disasm.backend.common.FileSectionType import FileSectionType
-from py_mips_disasm.backend.common.FileSplitFormat import FileSplitFormat
-
-from py_mips_disasm.backend.mips.MipsSection import Section
-from py_mips_disasm.backend.mips.MipsRelocZ64 import RelocZ64
-from py_mips_disasm.backend.mips.MipsFileSplits import FileSplits
+import py_mips_disasm.backend as disasmBack
 
 from mips.ZeldaTables import contextReadVariablesCsv, contextReadFunctionsCsv
 
@@ -33,8 +25,8 @@ def compare_baseroms(args, filelist):
     equals = 0
     different = 0
 
-    context_one = Context()
-    context_two = Context()
+    context_one = disasmBack.Context()
+    context_two = disasmBack.Context()
     context_one.fillDefaultBannedSymbols()
     context_one.fillLibultraSymbols()
     context_one.fillHardwareRegs()
@@ -62,43 +54,39 @@ def compare_baseroms(args, filelist):
                 print(f"File {filename} does not exists in other_baserom.")
             continue
 
-        file_one_data = disasm_Utils.readFileAsBytearray(filepath_one)
-        file_two_data = disasm_Utils.readFileAsBytearray(filepath_two)
+        file_one_data = disasmBack.Utils.readFileAsBytearray(filepath_one)
+        file_two_data = disasmBack.Utils.readFileAsBytearray(filepath_two)
 
         splitsDataOne = None
         splitsDataTwo = None
         tablePath = os.path.join(args.game, args.version1, "tables", f"files_{filename}.csv")
         if os.path.exists(tablePath):
-            splitsDataOne = FileSplitFormat()
+            splitsDataOne = disasmBack.FileSplitFormat()
             splitsDataOne.readCsvFile(tablePath)
         tablePath = os.path.join(args.game, args.version2, "tables", f"files_{filename}.csv")
         if os.path.exists(tablePath):
-            splitsDataTwo = FileSplitFormat()
+            splitsDataTwo = disasmBack.FileSplitFormat()
             splitsDataTwo.readCsvFile(tablePath)
 
         if filename.startswith("ovl_"):
-            relocOne = RelocZ64(context_one, None, filename, file_one_data)
-            file_one = FileSplits(context_one, None, filename, file_one_data, relocSection=relocOne)
-            relocTwo = RelocZ64(context_two, None, filename, file_two_data)
-            file_two = FileSplits(context_two, None, filename, file_two_data, relocSection=relocTwo)
+            relocOne = disasmBack.mips.sections.SectionRelocZ64(context_one, None, filename, file_one_data)
+            file_one = disasmBack.mips.FileSplits(context_one, None, filename, file_one_data, relocSection=relocOne)
+            relocTwo = disasmBack.mips.sections.SectionRelocZ64(context_two, None, filename, file_two_data)
+            file_two = disasmBack.mips.FileSplits(context_two, None, filename, file_two_data, relocSection=relocTwo)
         elif filename in ("code", "boot", "n64dd"):
-            file_one = FileSplits(context_one, None, filename, file_one_data, splitsData=splitsDataOne)
-            file_two = FileSplits(context_two, None, filename, file_two_data, splitsData=splitsDataTwo)
+            file_one = disasmBack.mips.FileSplits(context_one, None, filename, file_one_data, splitsData=splitsDataOne)
+            file_two = disasmBack.mips.FileSplits(context_two, None, filename, file_two_data, splitsData=splitsDataTwo)
         else:
-            file_one = Section(context_one, None, filename, file_one_data, FileSectionType.Unknown)
-            file_two = Section(context_two, None, filename, file_two_data, FileSectionType.Unknown)
+            file_one = disasmBack.mips.sections.SectionBase(context_one, None, filename, file_one_data, disasmBack.FileSectionType.Unknown)
+            file_two = disasmBack.mips.sections.SectionBase(context_two, None, filename, file_two_data, disasmBack.FileSectionType.Unknown)
 
         file_one.analyze()
         file_two.analyze()
 
-        if GlobalConfig.REMOVE_POINTERS:
-            both_updated = file_one.blankOutDifferences(file_two)
-            one_updated = file_one.removePointers()
-            two_updated = file_two.removePointers()
-            if both_updated or one_updated:
-                file_one.updateBytes()
-            if both_updated or two_updated:
-                file_two.updateBytes()
+        if disasmBack.GlobalConfig.REMOVE_POINTERS:
+            file_one.blankOutDifferences(file_two)
+            file_one.removePointers()
+            file_two.removePointers()
 
         comparison = file_one.compareToFile(file_two)
 
@@ -169,8 +157,8 @@ def compare_to_csv(args, filelist):
     column1 = args.version1 if args.column1 is None else args.column1
     column2 = args.version2 if args.column2 is None else args.column2
 
-    context_one = Context()
-    context_two = Context()
+    context_one = disasmBack.Context()
+    context_two = disasmBack.Context()
 
     print(f"Index,File,Are equals,Size in {column1},Size in {column2},Size proportion,Size difference,Bytes different,Words different", end="")
     if not args.dont_split_files:
@@ -186,8 +174,8 @@ def compare_to_csv(args, filelist):
         #if args.filetype != "all" and args.filetype != filedata["type"]:
         #    continue
 
-        file_one_data = disasm_Utils.readFileAsBytearray(filepath_one)
-        file_two_data = disasm_Utils.readFileAsBytearray(filepath_two)
+        file_one_data = disasmBack.Utils.readFileAsBytearray(filepath_one)
+        file_two_data = disasmBack.Utils.readFileAsBytearray(filepath_two)
 
         equal = ""
         len_one = ""
@@ -217,36 +205,32 @@ def compare_to_csv(args, filelist):
             splitsDataTwo = None
             tablePath = os.path.join(args.game, args.version1, "tables", f"files_{filename}.csv")
             if os.path.exists(tablePath):
-                splitsDataOne = FileSplitFormat()
+                splitsDataOne = disasmBack.FileSplitFormat()
                 splitsDataOne.readCsvFile(tablePath)
             tablePath = os.path.join(args.game, args.version2, "tables", f"files_{filename}.csv")
             if os.path.exists(tablePath):
-                splitsDataTwo = FileSplitFormat()
+                splitsDataTwo = disasmBack.FileSplitFormat()
                 splitsDataTwo.readCsvFile(tablePath)
 
             if not args.dont_split_files and filename.startswith("ovl_"):
-                relocOne = RelocZ64(context_one, None, filename, file_one_data)
-                file_one = FileSplits(context_one, None, filename, file_one_data, relocSection=relocOne)
-                relocTwo = RelocZ64(context_two, None, filename, file_two_data)
-                file_two = FileSplits(context_two, None, filename, file_two_data, relocSection=relocTwo)
+                relocOne = disasmBack.mips.sections.SectionRelocZ64(context_one, None, filename, file_one_data)
+                file_one = disasmBack.mips.FileSplits(context_one, None, filename, file_one_data, relocSection=relocOne)
+                relocTwo = disasmBack.mips.sections.SectionRelocZ64(context_two, None, filename, file_two_data)
+                file_two = disasmBack.mips.FileSplits(context_two, None, filename, file_two_data, relocSection=relocTwo)
             elif filename in ("code", "boot", "n64dd"):
-                file_one = FileSplits(context_one, None, filename, file_one_data, splitsData=splitsDataOne)
-                file_two = FileSplits(context_two, None, filename, file_two_data, splitsData=splitsDataTwo)
+                file_one = disasmBack.mips.FileSplits(context_one, None, filename, file_one_data, splitsData=splitsDataOne)
+                file_two = disasmBack.mips.FileSplits(context_two, None, filename, file_two_data, splitsData=splitsDataTwo)
             else:
-                file_one = Section(context_one, None, filename, file_one_data, FileSectionType.Unknown)
-                file_two = Section(context_two, None, filename, file_two_data, FileSectionType.Unknown)
+                file_one = disasmBack.mips.sections.SectionBase(context_one, None, filename, file_one_data, disasmBack.FileSectionType.Unknown)
+                file_two = disasmBack.mips.sections.SectionBase(context_two, None, filename, file_two_data, disasmBack.FileSectionType.Unknown)
 
             file_one.analyze()
             file_two.analyze()
 
-            if GlobalConfig.REMOVE_POINTERS:
-                both_updated = file_one.blankOutDifferences(file_two)
-                one_updated = file_one.removePointers()
-                two_updated = file_two.removePointers()
-                if both_updated or one_updated:
-                    file_one.updateBytes()
-                if both_updated or two_updated:
-                    file_two.updateBytes()
+            if disasmBack.GlobalConfig.REMOVE_POINTERS:
+                file_one.blankOutDifferences(file_two)
+                file_one.removePointers()
+                file_two.removePointers()
 
             comparison = file_one.compareToFile(file_two)
             if "filesections" in comparison:
@@ -282,20 +266,15 @@ def main():
     parser.add_argument("--column2", help="Name for column two (other_baserom) in the csv.", default=None)
     args = parser.parse_args()
 
-    GlobalConfig.REMOVE_POINTERS = not args.dont_remove_ptrs
-    GlobalConfig.IGNORE_BRANCHES = args.ignore_branches
+    disasmBack.GlobalConfig.REMOVE_POINTERS = not args.dont_remove_ptrs
+    disasmBack.GlobalConfig.IGNORE_BRANCHES = args.ignore_branches
     if args.ignore_words:
         for upperByte in args.ignore_words:
-            GlobalConfig.IGNORE_WORD_LIST.add(int(upperByte, 16))
-    # GlobalConfig.WRITE_BINARY = False
-    # GlobalConfig.ASM_COMMENT = not args.disable_asm_comments
-    GlobalConfig.PRODUCE_SYMBOLS_PLUS_OFFSET = True
-    GlobalConfig.TRUST_USER_FUNCTIONS = True
-    # GlobalConfig.DISASSEMBLE_UNKNOWN_INSTRUCTIONS = args.disasm_unknown
-    # GlobalConfig.VERBOSE = args.verbose
-    # GlobalConfig.QUIET = args.quiet
+            disasmBack.GlobalConfig.IGNORE_WORD_LIST.add(int(upperByte, 16))
+    disasmBack.GlobalConfig.PRODUCE_SYMBOLS_PLUS_OFFSET = True
+    disasmBack.GlobalConfig.TRUST_USER_FUNCTIONS = True
 
-    filelist = disasm_Utils.readFile(args.filelist)
+    filelist = disasmBack.Utils.readFile(args.filelist)
 
     if not args.no_csv:
         compare_to_csv(args, filelist)
