@@ -36,7 +36,11 @@ def disassemblerMain():
 
     disasmBack.GlobalConfig.addParametersToArgParse(parser)
 
+    disasmBack.mips.instructions.InstructionConfig.addParametersToArgParse(parser)
+
     args = parser.parse_args()
+
+    disasmBack.mips.instructions.InstructionConfig.parseArgs(args)
 
     disasmBack.GlobalConfig.parseArgs(args)
 
@@ -114,7 +118,10 @@ def disassemblerMain():
         if outputPath != "-":
             fileName = row.fileName
             if row.fileName == "":
-                fileName = f"{input_name}_{row.vram:08X}"
+                if row.vram != None:
+                    fileName = f"{input_name}_{row.vram:08X}"
+                else:
+                    fileName = input_name
 
             outputFilePath = os.path.join(outputPath, fileName)
 

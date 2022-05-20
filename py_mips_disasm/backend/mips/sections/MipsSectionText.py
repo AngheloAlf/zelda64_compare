@@ -32,17 +32,25 @@ class SectionText(SectionBase):
         funcsStartsList = [0]
         unimplementedInstructionsFuncList = []
 
+        currentVram = self.getVramOffset(0)
         instrsList: list[instructions.InstructionBase] = list()
         for word in self.words:
             if self.isRsp:
                 instr = instructions.wordToInstructionRsp(word)
             else:
                 instr = instructions.wordToInstruction(word)
+
+            if self.vram is not None:
+                instr.vram = currentVram
+
             instrsList.append(instr)
+            currentVram += 4
 
         trackedRegisters: dict[int, int] = dict()
         registersValues: dict[int, int] = dict()
         instructionOffset = 0
+        currentInstructionStart = 0
+        currentFunctionSym = self.context.getFunction(self.getVramOffset(instructionOffset))
 
         isLikelyHandwritten = self.isHandwritten
         newFunctions = list()
@@ -83,6 +91,9 @@ class SectionText(SectionBase):
 
                 trackedRegisters.clear()
                 registersValues.clear()
+
+                currentInstructionStart = instructionOffset
+                currentFunctionSym = self.context.getFunction(self.getVramOffset(instructionOffset))
 
                 funcsStartsList.append(index)
                 unimplementedInstructionsFuncList.append(not isInstrImplemented)
@@ -165,6 +176,11 @@ class SectionText(SectionBase):
                         if funcContext.isUserDefined or (common.GlobalConfig.DISASSEMBLE_RSP and self.isRsp):
                             functionEnded = True
 
+            if currentFunctionSym is not None:
+                if currentFunctionSym.size > 4:
+                    if instructionOffset + 8 == currentInstructionStart + currentFunctionSym.size:
+                            functionEnded = True
+
             index += 1
             farthestBranch -= 1
             instructionOffset += 4
@@ -222,15 +238,16 @@ class SectionText(SectionBase):
 
     def printAnalyzisResults(self):
         super().printAnalyzisResults()
-        if not common.GlobalConfig.VERBOSE:
+        if not common.GlobalConfig.PRINT_NEW_FILE_BOUNDARIES:
             return
-
-
-        common.Utils.printVerbose(f"Found {self.nFuncs} functions.")
 
         nBoundaries = len(self.fileBoundaries)
         if nBoundaries > 0:
-            common.Utils.printVerbose(f"Found {nBoundaries} file boundaries.")
+            print(f"File {self.name}")
+            print(f"Found {self.nFuncs} functions.")
+            print(f"Found {nBoundaries} file boundaries.")
+
+            print("\t offset, size, vram\t functions")
 
             for i in range(len(self.fileBoundaries)-1):
                 start = self.fileBoundaries[i]
@@ -238,14 +255,13 @@ class SectionText(SectionBase):
 
                 functionsInBoundary = 0
                 for func in self.symbolList:
-                    if func.vram is not None and self.vram is not None:
-                        funcOffset = func.vram - self.vram
-                        if start <= funcOffset < end:
-                            functionsInBoundary += 1
+                    funcOffset = func.inFileOffset - self.inFileOffset
+                    if start <= funcOffset < end:
+                        functionsInBoundary += 1
                 fileVram = 0
                 if self.vram is not None:
                     fileVram = start + self.vram
-                common.Utils.printVerbose("\t", common.Utils.toHex(start+self.commentOffset, 6)[2:], common.Utils.toHex(end-start, 4)[2:], common.Utils.toHex(fileVram, 8)[2:], "\t functions:", functionsInBoundary)
+                print("\t", f"{start+self.commentOffset:06X}", f"{end-start:04X}", f"{fileVram:08X}", "\t functions:", functionsInBoundary)
 
             start = self.fileBoundaries[-1]
             end = self.sizew*4 + self.inFileOffset
@@ -259,9 +275,9 @@ class SectionText(SectionBase):
             fileVram = 0
             if self.vram is not None:
                 fileVram = start + self.vram
-            common.Utils.printVerbose("\t", common.Utils.toHex(start+self.commentOffset, 6)[2:], common.Utils.toHex(end-start, 4)[2:], common.Utils.toHex(fileVram, 8)[2:], "\t functions:", functionsInBoundary)
+            print("\t", f"{start+self.commentOffset:06X}", f"{end-start:04X}", f"{fileVram:08X}", "\t functions:", functionsInBoundary)
 
-            common.Utils.printVerbose()
+            print()
         return
 
 

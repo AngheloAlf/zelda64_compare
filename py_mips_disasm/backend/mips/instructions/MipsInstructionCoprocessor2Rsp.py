@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from . import InstructionId, InstructionVectorId, InstructionCoprocessor2
+from .MipsInstructionConfig import InstructionConfig
 
 
 class InstructionCoprocessor2Rsp(InstructionCoprocessor2):
@@ -67,8 +68,6 @@ class InstructionCoprocessor2Rsp(InstructionCoprocessor2):
     def __init__(self, instr: int):
         super().__init__(instr)
 
-        self.isRsp = True
-
         self.opcodesDict = dict(self.Cop2Opcodes)
         self.processUniqueId()
 
@@ -81,22 +80,19 @@ class InstructionCoprocessor2Rsp(InstructionCoprocessor2):
             self.uniqueId = self.Cop2MoveOpcodes.get(self.elementHigh, InstructionVectorId.INVALID)
 
 
-    def isImplemented(self) -> bool:
-        return super().isImplemented()
-
     def modifiesRt(self) -> bool:
         if self.uniqueId in (InstructionVectorId.CFC2, InstructionVectorId.MFC2):
             return True
         return super().modifiesRt()
 
     def getOpcodeName(self) -> str:
-        if self.uniqueId == InstructionVectorId.INVALID or self.uniqueId == InstructionId.INVALID:
+        if not self.isImplemented():
             return f"COP2(0x{self.function:02X})"
         return super().getOpcodeName()
 
-    def disassemble(self, immOverride: str|None=None) -> str:
+    def disassembleInstruction(self, immOverride: str|None=None) -> str:
         opcode = self.getOpcodeName()
-        formated_opcode = opcode.lower().ljust(self.ljustWidthOpcode, ' ')
+        formated_opcode = opcode.lower().ljust(InstructionConfig.OPCODE_LJUST + self.extraLjustWidthOpcode, ' ')
         e_upper = self[25]
         e = self.processVectorElement(self.elementHigh)
         vt = self.getVectorRspRegisterName(self.vt)

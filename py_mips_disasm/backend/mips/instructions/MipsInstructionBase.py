@@ -5,48 +5,16 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from ... import common
 
-from . import InstructionId, InstructionVectorId
+from .MipsInstructionConfig import InstructionConfig, AbiNames
+from .MipsConstants import InstructionId, InstructionVectorId, InstrType, InstrDescriptor, instructionDescriptorDict
 
 
 class InstructionBase:
-    DefaultNumericRegisterNames = {
-        0:  "$0",
-        1:  "$1",
-        2:  "$2",
-        3:  "$3",
-        4:  "$4",
-        5:  "$5",
-        6:  "$6",
-        7:  "$7",
-        8:  "$8",
-        9:  "$9",
-        10: "$10",
-        11: "$11",
-        12: "$12",
-        13: "$13",
-        14: "$14",
-        15: "$15",
-        16: "$16",
-        17: "$17",
-        18: "$18",
-        19: "$19",
-        20: "$20",
-        21: "$21",
-        22: "$22",
-        23: "$23",
-        24: "$24",
-        25: "$25",
-        26: "$26",
-        27: "$27",
-        28: "$28",
-        29: "$29",
-        30: "$30",
-        31: "$31",
-    }
-
-    GprRegisterNames = {
+    GprO32RegisterNames = {
         0:  "$zero",
         1:  "$at",
         2:  "$v0",
@@ -63,6 +31,41 @@ class InstructionBase:
         13: "$t5",
         14: "$t6",
         15: "$t7",
+        16: "$s0",
+        17: "$s1",
+        18: "$s2",
+        19: "$s3",
+        20: "$s4",
+        21: "$s5",
+        22: "$s6",
+        23: "$s7",
+        24: "$t8",
+        25: "$t9",
+        26: "$k0",
+        27: "$k1",
+        28: "$gp",
+        29: "$sp",
+        30: "$fp",
+        31: "$ra",
+    }
+
+    GprN32RegisterNames = {
+        0:  "$zero",
+        1:  "$at",
+        2:  "$v0",
+        3:  "$v1",
+        4:  "$a0",
+        5:  "$a1",
+        6:  "$a2",
+        7:  "$a3",
+        8:  "$a4",
+        9:  "$a5",
+        10: "$a6",
+        11: "$a7",
+        12: "$t0",
+        13: "$t1",
+        14: "$t2",
+        15: "$t3",
         16: "$s0",
         17: "$s1",
         18: "$s2",
@@ -117,7 +120,7 @@ class InstructionBase:
     }
 
     # Float registers
-    Cop1RegisterNames = {
+    Cop1NumericRegisterNames = {
         0:  "$f0",
         1:  "$f1",
         2:  "$f2",
@@ -151,8 +154,108 @@ class InstructionBase:
         30: "$f30",
         31: "FpcCsr",
     }
-
-    Cop2RegisterNames = dict(DefaultNumericRegisterNames)
+    Cop1O32RegisterNames = {
+        0:  "$fv0",
+        1:  "$fv0f",
+        2:  "$fv1",
+        3:  "$fv1f",
+        4:  "$ft0",
+        5:  "$ft0f",
+        6:  "$ft1",
+        7:  "$ft1f",
+        8:  "$ft2",
+        9:  "$ft2f",
+        10: "$ft3",
+        11: "$ft3f",
+        12: "$fa0",
+        13: "$fa0f",
+        14: "$fa1",
+        15: "$fa1f",
+        16: "$ft4",
+        17: "$ft4f",
+        18: "$ft5",
+        19: "$ft5f",
+        20: "$fs0",
+        21: "$fs0f",
+        22: "$fs1",
+        23: "$fs1f",
+        24: "$fs2",
+        25: "$fs2f",
+        26: "$fs3",
+        27: "$fs3f",
+        28: "$fs4",
+        29: "$fs4f",
+        30: "$fs5",
+        31: "$fs5f",
+    }
+    Cop1N32RegisterNames = {
+        0:  "$fv0",
+        1:  "$ft14",
+        2:  "$fv1",
+        3:  "$ft15",
+        4:  "$ft0",
+        5:  "$ft1",
+        6:  "$ft2",
+        7:  "$ft3",
+        8:  "$ft4",
+        9:  "$ft5",
+        10: "$ft6",
+        11: "$ft7",
+        12: "$fa0",
+        13: "$fa1",
+        14: "$fa2",
+        15: "$fa3",
+        16: "$fa4",
+        17: "$fa5",
+        18: "$fa6",
+        19: "$fa7",
+        20: "$fs0",
+        21: "$ft8",
+        22: "$fs1",
+        23: "$ft9",
+        24: "$fs2",
+        25: "$ft10",
+        26: "$fs3",
+        27: "$ft11",
+        28: "$fs4",
+        29: "$ft12",
+        30: "$fs5",
+        31: "$ft13",
+    }
+    Cop1N64RegisterNames = {
+        0:  "$fv0",
+        1:  "$ft12",
+        2:  "$fv1",
+        3:  "$ft13",
+        4:  "$ft0",
+        5:  "$ft1",
+        6:  "$ft2",
+        7:  "$ft3",
+        8:  "$ft4",
+        9:  "$ft5",
+        10: "$ft6",
+        11: "$ft7",
+        12: "$fa0",
+        13: "$fa1",
+        14: "$fa2",
+        15: "$fa3",
+        16: "$fa4",
+        17: "$fa5",
+        18: "$fa6",
+        19: "$fa7",
+        20: "$ft8",
+        21: "$ft9",
+        22: "$ft10",
+        23: "$ft11",
+        24: "$fs0",
+        25: "$fs1",
+        26: "$fs2",
+        27: "$fs3",
+        28: "$fs4",
+        29: "$fs5",
+        30: "$fs6",
+        31: "$fs7",
+    }
 
     GprRspRegisterNames = {
         0:  "$zero",
@@ -243,6 +346,27 @@ class InstructionBase:
         31: "$v31",
     }
 
+    instrArgumentsCallbacks: dict[str, Callable[[InstructionBase, str|None], str]] = {
+        "rs":        lambda instr, immOverride: instr.getRegisterName(instr.rs),
+        "rt":        lambda instr, immOverride: instr.getRegisterName(instr.rt),
+        "rd":        lambda instr, immOverride: instr.getRegisterName(instr.rd),
+        "sa":        lambda instr, immOverride: str(instr.sa),
+        "ft":        lambda instr, immOverride: instr.getFloatRegisterName(instr.ft),
+        "fs":        lambda instr, immOverride: instr.getFloatRegisterName(instr.fs),
+        "fd":        lambda instr, immOverride: instr.getFloatRegisterName(instr.fd),
+        "IMM":       lambda instr, immOverride: instr.processImmediate(immOverride),
+        "LABEL":     lambda instr, immOverride: immOverride if immOverride is not None else f"func_{instr.getInstrIndexAsVram():06X}",
+        "cop2t":     lambda instr, immOverride: instr.getCop2RegisterName(instr.rt),
+        "cop0d":     lambda instr, immOverride: instr.getCop0RegisterName(instr.rd),
+        "code":      lambda instr, immOverride: str(instr.instr_index >> 16),
+        "op":        lambda instr, immOverride: f"0x{instr.rt:02X}",
+        "IMM(base)": lambda instr, immOverride: f"{instr.processImmediate(immOverride)}({instr.getRegisterName(instr.baseRegister)})",
+    }
+    """Dictionary of callbacks to process the operands of an instruction.
+
+    The keys should match the ones used in InstrDescriptor#operands
+    """
+
     def __init__(self, instr: int):
         self.opcode = (instr >> 26) & 0x3F
         self.rs = (instr >> 21) & 0x1F # rs
@@ -253,10 +377,11 @@ class InstructionBase:
 
         self.opcodesDict: dict[int, InstructionId | InstructionVectorId] = dict()
         self.uniqueId: InstructionId|InstructionVectorId = InstructionId.INVALID
+        self.descriptor: InstrDescriptor = instructionDescriptorDict[self.uniqueId]
 
-        self.ljustWidthOpcode = 7+4
+        self.extraLjustWidthOpcode = 0
 
-        self.isRsp: bool = False
+        self.vram: int|None = None
 
     @property
     def instr(self) -> int:
@@ -320,9 +445,12 @@ class InstructionBase:
         return self.immediate & 0x7F
 
     def getInstrIndexAsVram(self) -> int:
-        vram = self.instr_index<<2
-        if not self.isRsp:
+        vram = self.instr_index << 2
+        if self.vram is None:
             vram |= 0x80000000
+        else:
+            # Jumps are PC-region branches. The upper bits are filled with the address in the delay slot
+            vram |= (self.vram+4) & 0xFF000000
         return vram
 
 
@@ -334,6 +462,8 @@ class InstructionBase:
 
     def processUniqueId(self):
         self.uniqueId = self.opcodesDict.get(self.opcode, InstructionId.INVALID)
+        if self.uniqueId in instructionDescriptorDict:
+            self.descriptor = instructionDescriptorDict[self.uniqueId]
 
     def isImplemented(self) -> bool:
         if self.uniqueId == InstructionId.INVALID:
@@ -343,33 +473,35 @@ class InstructionBase:
         return True
 
     def isFloatInstruction(self) -> bool:
-        return False
+        return self.descriptor.isFloat
 
     def isDoubleFloatInstruction(self) -> bool:
-        return False
+        return self.descriptor.isDouble
 
 
     def isBranch(self) -> bool:
-        return False
+        return self.descriptor.isBranch
     def isBranchLikely(self) -> bool:
-        return False
+        return self.descriptor.isBranchLikely
+    def isJump(self) -> bool:
+        return self.descriptor.isJump
     def isTrap(self) -> bool:
-        return False
+        return self.descriptor.isTrap
 
     def isJType(self) -> bool:
-        return False
+        return self.descriptor.instrType == InstrType.typeJ
 
     def isIType(self) -> bool:
-        return False
+        return self.descriptor.instrType == InstrType.typeI
 
     def isRType(self) -> bool:
-        return False
+        return self.descriptor.instrType == InstrType.typeR
 
 
     def sameOpcode(self, other: InstructionBase) -> bool:
-        if self.uniqueId in (InstructionId.INVALID, InstructionVectorId.INVALID):
+        if not self.isImplemented():
             return False
-        if other.uniqueId in (InstructionId.INVALID, InstructionVectorId.INVALID):
+        if not other.isImplemented():
             return False
         return self.uniqueId == other.uniqueId
 
@@ -383,11 +515,9 @@ class InstructionBase:
 
 
     def modifiesRt(self) -> bool:
-        if self.isBranch():
-            return False
-        return True
+        return self.descriptor.modifiesRt
     def modifiesRd(self) -> bool:
-        return False
+        return self.descriptor.modifiesRd
 
 
     def blankOut(self):
@@ -399,34 +529,61 @@ class InstructionBase:
 
 
     def getOpcodeName(self) -> str:
-        if self.uniqueId != InstructionId.INVALID and self.uniqueId != InstructionVectorId.INVALID:
+        if self.isImplemented():
             return self.uniqueId.name
         return f"(0x{self.opcode:02X})"
 
+
     def getRegisterName(self, register: int) -> str:
-        return self.GprRegisterNames.get(register, f"${register:02X}")
+        if not InstructionConfig.NAMED_REGISTERS:
+            return f"${register}"
+        if InstructionConfig.GPR_ABI_NAMES == AbiNames.o32:
+            return self.GprO32RegisterNames.get(register, f"${register}")
+        if InstructionConfig.GPR_ABI_NAMES == AbiNames.numeric:
+            return f"${register}"
+        # AbiNames.n32 or AbiNames.n64
+        return self.GprN32RegisterNames.get(register, f"${register}")
 
     def getFloatRegisterName(self, register: int) -> str:
-        return self.Cop1RegisterNames.get(register, f"${register:02X}")
+        if not InstructionConfig.NAMED_REGISTERS:
+            return f"${register}"
+        if InstructionConfig.FPR_ABI_NAMES == AbiNames.numeric:
+            if register == 31 and not InstructionConfig.USE_FPCCSR:
+                return "$31"
+            return self.Cop1NumericRegisterNames.get(register, f"${register}")
+        if InstructionConfig.FPR_ABI_NAMES == AbiNames.o32:
+            return self.Cop1O32RegisterNames.get(register, f"${register}")
+        if InstructionConfig.FPR_ABI_NAMES == AbiNames.n32:
+            return self.Cop1N32RegisterNames.get(register, f"${register}")
+        # AbiNames.n64
+        return self.Cop1N64RegisterNames.get(register, f"${register}")
 
     def getCop0RegisterName(self, register: int) -> str:
-        if common.GlobalConfig.VR4300_COP0_NAMED_REGISTERS:
-            return InstructionBase.Cop0RegisterNames.get(register, f"${register:02X}")
-        return self.DefaultNumericRegisterNames.get(register, f"${register:02X}")
+        if not InstructionConfig.NAMED_REGISTERS:
+            return f"${register}"
+        if InstructionConfig.VR4300_COP0_NAMED_REGISTERS:
+            return self.Cop0RegisterNames.get(register, f"${register}")
+        return f"${register}"
 
     def getCop2RegisterName(self, register: int) -> str:
-        return InstructionBase.Cop2RegisterNames.get(register, f"${register:02X}")
+        return f"${register}"
 
     def getGprRspRegisterName(self, register: int) -> str:
-        return self.GprRspRegisterNames.get(register, f"${register:02X}")
+        if not InstructionConfig.NAMED_REGISTERS:
+            return f"${register}"
+        return self.GprRspRegisterNames.get(register, f"${register}")
 
     def getCop0RspRegisterName(self, register: int) -> str:
-        if common.GlobalConfig.VR4300_RSP_COP0_NAMED_REGISTERS:
-            return InstructionBase.Cop0RspRegisterNames.get(register, f"${register:02X}")
-        return self.DefaultNumericRegisterNames.get(register, f"${register:02X}")
+        if not InstructionConfig.NAMED_REGISTERS:
+            return f"${register}"
+        if InstructionConfig.VR4300_RSP_COP0_NAMED_REGISTERS:
+            return self.Cop0RspRegisterNames.get(register, f"${register}")
+        return f"${register}"
 
     def getVectorRspRegisterName(self, register: int) -> str:
-        return self.VectorRspRegisterNames.get(register, f"${register:02X}")
+        if not InstructionConfig.NAMED_REGISTERS:
+            return f"${register}"
+        return self.VectorRspRegisterNames.get(register, f"${register}")
 
 
     def processVectorElement(self, element: int) -> int:
@@ -438,17 +595,51 @@ class InstructionBase:
             return element & 2
         return element
 
+    def getBranchOffset(self) -> int:
+        diff = common.Utils.from2Complement(self.immediate, 16)
+        return diff*4 + 4
+
+
+    def processImmediate(self, immOverride: str|None=None) -> str:
+        if immOverride is not None:
+            return immOverride
+
+        if not self.descriptor.isUnsigned:
+            number = common.Utils.from2Complement(self.immediate, 16)
+            if number < 0:
+                return f"-0x{-number:X}"
+            return f"0x{number:X}"
+
+        return f"0x{self.immediate:X}"
+
+    def disassembleInstruction(self, immOverride: str|None=None) -> str:
+        opcode = self.getOpcodeName().lower()
+        if len(self.descriptor.operands) == 0:
+            return opcode
+
+        result = opcode.ljust(InstructionConfig.OPCODE_LJUST + self.extraLjustWidthOpcode, ' ') + " "
+        for i, operand in enumerate(self.descriptor.operands):
+            if i != 0:
+                result += ", "
+            result += self.instrArgumentsCallbacks[operand](self, immOverride)
+
+        return result
+
+    def disassembleAsData(self) -> str:
+        result = ".word".ljust(InstructionConfig.OPCODE_LJUST + self.extraLjustWidthOpcode, ' ')
+        result += f" 0x{self.instr:08X}"
+
+        return result
 
     def disassemble(self, immOverride: str|None=None) -> str:
-        opcode = self.getOpcodeName().lower().ljust(self.ljustWidthOpcode, ' ')
-        rs = self.getRegisterName(self.rs)
-        rt = self.getRegisterName(self.rt)
-        #immediate = toHex(self.immediate, 4)
-        immediate = hex(self.immediate)
-        if immOverride is not None:
-            immediate = immOverride
-
-        return f"ERROR # {opcode} {rs} {rt} {immediate}"
+        if not self.isImplemented():
+            result = self.disassembleAsData()
+            if InstructionConfig.UNKNOWN_INSTR_COMMENT:
+                result = result.ljust(40, ' ')
+                result += " # "
+                result += self.disassembleInstruction(immOverride)
+            return result
+        return self.disassembleInstruction(immOverride)
 
 
     def mapInstrToType(self) -> str|None:

@@ -5,9 +5,8 @@
 
 from __future__ import annotations
 
-from ... import common
-
 from . import InstructionId, InstructionVectorId, InstructionNormal
+from .MipsInstructionConfig import InstructionConfig
 
 
 class InstructionNormalRsp(InstructionNormal):
@@ -86,8 +85,6 @@ class InstructionNormalRsp(InstructionNormal):
     def __init__(self, instr: int):
         super().__init__(instr)
 
-        self.isRsp = True
-
         for opcode in InstructionNormalRsp.RemovedOpcodes:
             if opcode in self.opcodesDict:
                 del self.opcodesDict[opcode]
@@ -115,9 +112,9 @@ class InstructionNormalRsp(InstructionNormal):
         return self.getGprRspRegisterName(register)
 
 
-    def disassemble(self, immOverride: str|None=None) -> str:
+    def disassembleInstruction(self, immOverride: str|None=None) -> str:
         opcode = self.getOpcodeName()
-        formated_opcode = opcode.lower().ljust(self.ljustWidthOpcode, ' ')
+        formated_opcode = opcode.lower().ljust(InstructionConfig.OPCODE_LJUST + self.extraLjustWidthOpcode, ' ')
         vt = self.getVectorRspRegisterName(self.vt)
         base = self.getGprRspRegisterName(self.baseRegister)
         offset = hex(self.offsetVector)
@@ -147,4 +144,4 @@ class InstructionNormalRsp(InstructionNormal):
 
             return result
 
-        return super().disassemble(immOverride)
+        return super().disassembleInstruction(immOverride)
